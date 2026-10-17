@@ -7,7 +7,7 @@ Scripts da arquitetura v1 do Delta: um job Mongo por coleção em cada camada, u
 ```text
 bronze/
   app/                  # Ingestão Mongo: alertas, chat, feedback, preferências e clima
-  telemetry/            # Ingestão Mongo: status dos dispositivos
+  telemetry/            # Ingestão Mongo: consumo consolidado e status dos dispositivos
 silver/
   app/                  # Transformações das cinco coleções do aplicativo
   telemetry/            # Transformações de consumo e status dos dispositivos
@@ -56,7 +56,7 @@ Bronze → Silver → extração SQL → exportação → envio → importação
 
 ## Origem e preservação
 
-A referência de produção indicada pelo responsável é o conjunto local previamente montado, complementado pelos scripts originais das conversas. Os arquivos foram copiados sem alterar código, comentários, prefixos S3, nomes de conexões, regras ou formatação. A comparação de conteúdo é contra essas fontes; não houve leitura de uma conta AWS ativa nem execução de pipelines nesta importação.
+A referência de produção indicada pelo responsável é o conjunto local previamente montado, complementado pelos scripts originais das conversas. Os arquivos recuperados foram copiados sem alterar código, comentários, prefixos S3, nomes de conexões, regras ou formatação. A exceção é o Bronze de `consumption_summary`, reconstruído conforme descrito abaixo. A comparação de conteúdo dos demais arquivos é contra essas fontes; não houve leitura de uma conta AWS ativa nem execução de pipelines nesta importação.
 
 - Bronze/Silver de status, clima e sessões: arquivos de `output/pipelines` do workspace de origem.
 - Silver de consumo, alertas, feedback e preferências: blocos Python originais enviados pelo responsável na conversa “Definir KPIs Gold para BI”, em 12/10/2026.
@@ -64,6 +64,6 @@ A referência de produção indicada pelo responsável é o conjunto local previ
 - Gold BI: arquivos preservados em `output/databricks/gold-previous/bi-v1-20261016`; apoio compartilhado e quatro notebooks de plataforma: `output/databricks/gold`.
 - Extração SQL e transferência: arquivos de `output/databricks/files-api`.
 
-**Recuperação pendente:** falta o script Bronze original de `consumption_summary`. Os arquivos locais e ZIPs consultados não contêm esse script; a mensagem da conversa original foi truncada pelo conector antes do fim do código. Ele não foi reconstruído por semelhança com outro job. Até sua recuperação, esta importação não representa o conjunto Bronze completo.
+O arquivo `bronze/telemetry/bronze_consumption_summary.py` foi **reconstruído com autorização do responsável** a partir de `bronze/app/bronze_alerts_history.py`, alterando somente conexão, database, coleção e destino. Mantém a leitura Mongo, os metadados de ingestão, o MERGE por `_id`, a evolução de schema, o retry e a amostra de saída do padrão existente. Usa `delta-telemetry-atlas-connection`, `db_delta_telemetry.consumption_summary` e `s3://delta-app-oficial-datalake/bronze/telemetry/consumption_summary/`, o caminho lido pela Silver de consumo desta v1. O conjunto contém agora sete Bronze e sete jobs Silver. Esse Bronze é uma reconstrução do padrão, sem comprovação de identidade com o script original de produção.
 
 Este README concentra a descrição da estrutura. A documentação detalhada permanece destinada ao handbook.
