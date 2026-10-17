@@ -1,0 +1,135 @@
+# ============================================
+# Variáveis de ambiente e credenciais
+# ============================================
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# ============================================
+# Java / Maven / Gradle
+# ============================================
+target/
+build/
+.gradle/
+
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven Wrapper deve ser versionado
+!.mvn/wrapper/maven-wrapper.jar
+
+# ============================================
+# JavaScript / TypeScript / Node
+# ============================================
+node_modules/
+.npm/
+.yarn/cache/
+.pnpm-store/
+
+dist/
+out/
+coverage/
+.nyc_output/
+
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============================================
+# SQL / MongoDB
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+
+# Dumps e backups locais
+*.dump
+*.bak
+*.bkp
+
+# ============================================
+# Logs e arquivos temporários
+# ============================================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ============================================
+# IntelliJ IDEA
+# ============================================
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ============================================
+# Eclipse / STS
+# ============================================
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# ============================================
+# NetBeans
+# ============================================
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# ============================================
+# VS Code
+# ============================================
+.vscode/
+
+# ============================================
+# Sistema operacional
+# ============================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Arquivos locais do projeto
+# ============================================
+TASK*.md

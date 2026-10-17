@@ -1,0 +1,20 @@
+name: Execute Delta Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+jobs:
+  validate-pr-checks:
+    uses: delta-app-ofc/.github/.github/workflows/main.yml@main
+
+    permissions:
+      contents: read
+      issues: write
+      packages: read
+      pull-requests: write
+      repository-projects: read
+      statuses: write
+
+    secrets:
+      GH_TOKEN: ${{ secrets.DELTA_ORG_AUTOMATION_TOKEN }}
