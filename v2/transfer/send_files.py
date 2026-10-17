@@ -1,4 +1,4 @@
-"""Glue Python Shell 3.9: S3 -> Files API -> Job Databricks, aguardando sucesso."""
+"""Glue Python Shell 3.9: envia o lote e dispara o Databricks, sem esperar a execução."""
 
 import argparse
 import hashlib
@@ -41,8 +41,6 @@ def parse_args(argv=None):
     parser.add_argument("--CHECK_ONLY", choices=("true", "false"), default="false")
     parser.add_argument("--WORKFLOW_NAME")
     parser.add_argument("--WORKFLOW_RUN_ID")
-    parser.add_argument("--WAIT_TIMEOUT_SECONDS", type=int, default=3600)
-    parser.add_argument("--POLL_SECONDS", type=int, default=30)
     # Glue também injeta JOB_NAME, JOB_RUN_ID e parâmetros de infraestrutura.
     args, _ = parser.parse_known_args(argv)
     args.VOLUME_PATH = args.VOLUME_PATH.strip().rstrip("/")
@@ -52,12 +50,8 @@ def parse_args(argv=None):
         parser.error(
             f"VOLUME_PATH inválido: {args.VOLUME_PATH!r}. Informe /Volumes/catalog/schema/volume."
         )
-    if (
-        args.DATABRICKS_JOB_ID <= 0
-        or args.WAIT_TIMEOUT_SECONDS <= 0
-        or not 5 <= args.POLL_SECONDS <= 60
-    ):
-        parser.error("JOB_ID/WAIT_TIMEOUT devem ser positivos; POLL_SECONDS entre 5 e 60.")
+    if args.DATABRICKS_JOB_ID <= 0:
+        parser.error("DATABRICKS_JOB_ID deve ser positivo.")
     if args.CHECK_ONLY == "false" and not (args.WORKFLOW_NAME and args.WORKFLOW_RUN_ID):
         parser.error("Execute pelo workflow Glue; CHECK_ONLY=true permite o teste isolado.")
     return args
@@ -339,30 +333,7 @@ def trigger_import(api, args, batch_id):
     return run_id
 
 
-def wait_for_import(api, run_id, timeout, poll, clock=time.monotonic, sleep=time.sleep):
-    deadline = clock() + timeout
-    previous = None
-    while clock() < deadline:
-        run = api.json_request("GET", "/api/2.2/jobs/runs/get", params={"run_id": run_id})
-        state = run.get("state", {})
-        lifecycle, result = state.get("life_cycle_state"), state.get("result_state")
-        if (lifecycle, result) != previous:
-            print(f"Databricks run_id={run_id}: {lifecycle}; resultado={result}")
-            previous = (lifecycle, result)
-        if lifecycle in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR"):
-            if lifecycle == "TERMINATED" and result == "SUCCESS":
-                return
-            raise RuntimeError(
-                f"Importação Databricks falhou: run_id={run_id}; {lifecycle}/{result}."
-            )
-        sleep(min(poll, max(0, deadline - clock())))
-    raise TimeoutError(
-        f"Tempo de espera esgotado para run_id={run_id}. A execução Databricks pode continuar; "
-        "confira esse run antes de iniciar uma nova carga."
-    )
-
-
-def transfer_and_import(s3, glue, api, args):
+def transfer_and_submit(s3, glue, api, args):
     properties = workflow_properties(glue, args)
     manifest, raw = read_manifest(s3, properties, args)
     check_job(api, args.DATABRICKS_JOB_ID)
@@ -370,14 +341,6 @@ def transfer_and_import(s3, glue, api, args):
     try:
         send_batch(s3, api, manifest, raw, args.VOLUME_PATH)
         run_id = trigger_import(api, args, manifest["batch_id"])
-        workflow_properties(
-            glue,
-            args,
-            {"delta_databricks_status": "RUNNING", "delta_databricks_run_id": str(run_id)},
-        )
-        print(f"Databricks Job ID: {args.DATABRICKS_JOB_ID}; Run ID: {run_id}")
-        wait_for_import(api, run_id, args.WAIT_TIMEOUT_SECONDS, args.POLL_SECONDS)
-        workflow_properties(glue, args, {"delta_databricks_status": "SUCCESS"})
     except Exception:
         # Conserva o erro original caso até a atualização das propriedades falhe.
         try:
@@ -385,7 +348,22 @@ def transfer_and_import(s3, glue, api, args):
         except Exception:
             print("Não foi possível registrar FAILED nas propriedades do workflow.")
         raise
-    print(f"Carga completa: {manifest['batch_id']}. {len(manifest['tables'])} tabelas importadas.")
+
+    # A API confirmou a submissão. Falha ao registrar metadados não implica falha do Databricks.
+    # Imprime o run_id antes de atualizar o Glue, para permitir localizar a execução nesse caso.
+    print(f"Databricks Job ID: {args.DATABRICKS_JOB_ID}; Run ID: {run_id}", flush=True)
+    workflow_properties(
+        glue,
+        args,
+        {"delta_databricks_status": "SUBMITTED", "delta_databricks_run_id": str(run_id)},
+    )
+    print(
+        f"Lote enviado: {manifest['batch_id']}; {len(manifest['tables'])} tabelas. "
+        "Execução Databricks submetida; acompanhe importação e Gold no Databricks. "
+        "O sucesso deste job Glue não confirma a conclusão da carga.",
+        flush=True,
+    )
+    return run_id
 
 
 def main(argv=None):
@@ -400,7 +378,7 @@ def main(argv=None):
         if args.CHECK_ONLY == "true":
             check_access(api, args.DATABRICKS_JOB_ID, args.VOLUME_PATH)
         else:
-            transfer_and_import(boto3.client("s3"), boto3.client("glue"), api, args)
+            transfer_and_submit(boto3.client("s3"), boto3.client("glue"), api, args)
 
 
 if __name__ == "__main__":

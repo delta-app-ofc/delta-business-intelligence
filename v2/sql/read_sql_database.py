@@ -1,7 +1,7 @@
 """Glue Spark: quatro snapshots SQL necessários aos 13 KPIs da BI v2.
 
 As consultas leem somente public; não executam DDL/ETL no PostgreSQL.
-Execute no mesmo workflow do exportador para liberar a transferência.
+Execute antes da Silver unificada, no mesmo workflow, para liberar a exportação.
 SQL_CHECK_ONLY=true permite conferir as quatro fontes sem escrever snapshots.
 """
 
@@ -449,7 +449,7 @@ if CHECK_ONLY == "false":
     )
     if not workflow_name:
         print(
-            "Carga avulsa concluída. Para transferir, execute o SQL e o exportador no mesmo workflow.",
+            "Carga avulsa concluída. Para transferir, execute o SQL e a Silver no mesmo workflow.",
             flush=True,
         )
 
