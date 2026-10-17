@@ -1,6 +1,6 @@
 -- BI v2: cada SELECT é um dataset separado do dashboard.
 -- start_date inclusiva; end_date exclusiva. region_id = 'ALL' ou um ID cadastrado.
--- reference_date é a data de vigência das tarifas; temperature_band_c > 0.
+-- reference_date é a data de vigência das tarifas; temperature_band_c > 0 (cor/filtro do scatter).
 -- Os nomes completos usam workspace; substitua se o seu catálogo for outro.
 
 -- Cada dataset usa somente CTEs próprias e tabelas gold_bi.
@@ -46,7 +46,10 @@ WHERE to_date(from_utc_timestamp(occurred_at,'America/Sao_Paulo')) >= cast(:star
   AND to_date(from_utc_timestamp(occurred_at,'America/Sao_Paulo')) < cast(:end_date AS DATE)
 GROUP BY ALL ORDER BY local_date;
 
--- BI06: scatter. Uma observação por imóvel/hora completa, não por leitura.
+-- BI06:
+-- Scatter: um ponto por imóvel/hora completa, sem média por faixa.
+-- X=temperature_c, Y=consumption_liters. Preserve property_id/hour_utc como identidade.
+-- band_start_c serve somente para cor/filtro; não agregar os pontos por ela.
 WITH bi_complete_hour AS (
   SELECT * FROM workspace.gold_bi.tb_consumption_hourly
   WHERE expected_seconds > 0 AND abs(covered_seconds-expected_seconds) < 0.001
@@ -61,9 +64,8 @@ WITH bi_complete_hour AS (
                     *try_cast(:temperature_band_c AS DOUBLE) AS band_start_c
   FROM paired WHERE try_cast(:temperature_band_c AS DOUBLE)>0
 )
-SELECT band_start_c,band_start_c+try_cast(:temperature_band_c AS DOUBLE)/2 AS band_center_c,
-       avg(consumption_liters) AS mean_liters_per_property_hour,count(*) AS property_hours
-FROM bands GROUP BY band_start_c ORDER BY band_start_c;
+SELECT property_id,hour_utc,temperature_c,consumption_liters,band_start_c
+FROM bands ORDER BY hour_utc,property_id;
 
 -- BI07: linhas residencial/comercial, média por imóvel/dia completo.
 WITH bi_complete_hour AS (
@@ -103,7 +105,8 @@ SELECT agent_name,response_time_ms/1000.0 AS response_seconds
 FROM workspace.gold_bi.tb_agent_call
 WHERE to_date(from_utc_timestamp(occurred_at,'America/Sao_Paulo')) >= cast(:start_date AS DATE)
   AND to_date(from_utc_timestamp(occurred_at,'America/Sao_Paulo')) < cast(:end_date AS DATE)
-  AND agent_name IS NOT NULL AND response_time_ms IS NOT NULL;
+  AND agent_name IS NOT NULL AND response_time_ms IS NOT NULL
+  AND agent_name NOT IN ('judge','router');
 -- Na medida do visual, média=avg(response_seconds), p90=percentile_approx(response_seconds,0.9).
 -- Juiz/roteador já têm duração NULL na tabela. Nunca usar atraso usuário→bot.
 

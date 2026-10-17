@@ -51,7 +51,7 @@ def local_date(column):
 
 def canonical_text(column):
     # Mesmo valor para grafias com/sem acento, espaços repetidos e Unicode decomposto.
-    text = F.upper(F.trim(F.regexp_replace(F.col(column), r"\s+", " ")))
+    text = F.upper(F.trim(F.regexp_replace(F.col(column), r"[\s\p{Z}]+", " ")))
     text = F.translate(text, "ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ", "AAAAAEEEEIIIIOOOOOUUUUCN")
     return F.regexp_replace(text, r"\p{M}", "")
 
@@ -115,6 +115,7 @@ def properties_sp(frame, rates=None):
         )
     )
     require_values(result, ["property_id", "region_id", "region_name", "city", "state", "classification_group"], "Imóveis SP")
+    reject_rows(result.filter(~F.col("classification_group").isin("RESIDENCIAL", "COMERCIAL")), "Imóveis SP: classificação fora do contrato SQL.")
     require_unique(result, ["property_id"], "Contexto SP")
     region_dictionary(result, *([rates] if rates is not None else []))
     # Endereço incompleto impede publicação: não esconder imóveis do mapa nem inventar pontos.
@@ -128,6 +129,7 @@ def properties_sp(frame, rates=None):
 
 
 def device_context(devices, properties):
+    require_values(devices, ["device_id", "property_id", "installation_date"], "Cadastro de dispositivos")
     require_unique(devices, ["device_id"], "Cadastro de dispositivos")
     return devices.select("device_id", "property_id", "installation_date").join(
         properties, "property_id", "inner"
@@ -157,6 +159,8 @@ def consumption_parts(windows, devices, properties, cutoff):
     require_unique(
         windows, ["device_id", "window_started_at", "window_finished_at"], "Janelas de consumo"
     )
+    require_values(windows, ["device_id", "user_id", "window_started_at", "window_finished_at", "consumption_liters"], "Janelas de consumo")
+    reject_rows(windows.select("device_id").join(devices.select("device_id"), "device_id", "left_anti"), "Consumo: dispositivo sem cadastro SQL.")
     context = device_context(devices, properties)
     rows = (
         windows.select(
@@ -274,7 +278,11 @@ def weather_hourly(weather, properties, cutoff):
 
 
 def alert_count_daily(alerts, devices, properties, cutoff):
+    require_values(alerts, ["alert_id", "device_id", "alert_type", "triggered_at"], "Alertas")
     require_unique(alerts, ["alert_id"], "Alertas")
+    reject_rows(alerts.select("device_id").join(devices.select("device_id"), "device_id", "left_anti"), "Alertas: dispositivo sem cadastro SQL.")
+    alerts = alerts.withColumn("alert_type", F.lower(F.regexp_replace(canonical_text("alert_type"), "[ -]+", "_")))
+    reject_rows(alerts.filter(~F.col("alert_type").isin("vazamento_continuo", "fluxo_atipico", "dispositivo_offline", "leitura_impossivel")), "Alertas: tipo fora do contrato Mongo.")
     rows = (
         alerts.filter(
             F.col("triggered_at").isNotNull()
@@ -373,6 +381,7 @@ def tariff_validity(rates):
         ],
         "bi_tariff_context",
     )
+    require_values(rates, ["region_id", "region_name", "classification_id", "classification_group", "initial_validity", "m3_value"], "Tarifas SQL")
     rows = (rates.withColumn("classification_group", canonical_text("classification_group"))
             .withColumn("region_name", canonical_region("region_name"))
             .filter(F.col("classification_group").isin("RESIDENCIAL", "COMERCIAL")))
@@ -408,7 +417,11 @@ def tariff_validity(rates):
 
 
 def target_compliance_daily(parts, preferences, devices, bridge, keys):
+    require_values(preferences, ["user_id"], "Metas atuais")
     require_unique(preferences, ["user_id"], "Metas atuais")
+    # Meta ausente é desconhecida; meta preenchida inválida é erro na origem.
+    reject_rows(preferences.filter(F.col("daily_liters_target").isNotNull()
+                                  & (~finite("daily_liters_target") | (F.col("daily_liters_target") <= 0))), "Metas atuais: valor preenchido inválido; corrija user_preferences.")
     daily = (
         parts.filter(F.col("user_id").isNotNull())
         .groupBy("user_id", "local_date")
@@ -463,6 +476,8 @@ def device_availability_daily(status, devices, properties, cutoff):
         "device_status",
     )
     require_unique(status, ["device_id"], "Status")
+    require_values(status, ["device_id"], "Status")
+    reject_rows(status.select("device_id").join(devices.select("device_id"), "device_id", "left_anti"), "Status: dispositivo sem cadastro SQL.")
     rows = status.join(
         device_context(devices, properties).select(
             "device_id", "property_id", "region_id", "region_name"
@@ -474,6 +489,7 @@ def device_availability_daily(status, devices, properties, cutoff):
         rows.filter(
             (F.col("availability_updated_at") < F.col("availability_started_at"))
             | (F.col("availability_updated_at") > F.lit(cutoff).cast("timestamp"))
+            | ~finite("available_seconds")
             | (F.col("available_seconds") < 0)
         ),
         "Período/contador de disponibilidade inválido ou posterior ao corte.",
@@ -506,6 +522,7 @@ def device_availability_daily(status, devices, properties, cutoff):
         events.filter(
             F.col("started_at").isNull()
             | F.col("reported_seconds").isNull()
+            | ~finite("reported_seconds")
             | (F.col("reported_seconds") < 0)
             | (F.col("started_at") < F.col("availability_started_at"))
             | (F.col("end_at") > F.col("availability_updated_at"))
@@ -580,6 +597,100 @@ def device_availability_daily(status, devices, properties, cutoff):
     )
 
 
+GOLD_DESCRIPTIONS = {
+    "tb_weather_hourly": {
+        "table": "Clima horário por cidade no estado de São Paulo, com temperaturas observada e aparente, para análises temporais e associação com consumo. Uma linha por cidade, estado e instante UTC.",
+        "columns": {
+            "city": "Cidade em grafia canônica, sem acentos e em maiúsculas.",
+            "state": "Sigla da unidade federativa; nesta Gold, SP.",
+            "region_ids": "IDs SQL das regiões associadas aos imóveis da cidade. Lista vazia significa que não há imóvel vinculado no contexto do lote.",
+            "hour_utc": "Instante de referência da observação climática em UTC, truncado para a hora.",
+            "local_date": "Data do instante hour_utc convertida para o fuso America/Sao_Paulo.",
+            "temperature_c": "Temperatura do ar observada na hora, em graus Celsius.",
+            "feels_like_c": "Sensação térmica observada na hora, em graus Celsius.",
+        },
+    },
+    "tb_consumption_hourly": {
+        "table": "Consumo e cobertura de telemetria por imóvel e hora local, enriquecidos com clima, endereço e classe. Uma linha por imóvel e hora completa elegível; consumo em litros.",
+        "columns": {
+            "property_id": "Identificador SQL do imóvel, usado como unidade espacial do fato.",
+            "hour_utc": "Início da hora de consumo em UTC.",
+            "local_date": "Data local da hora no fuso America/Sao_Paulo.",
+            "hour": "Hora do dia local, de 0 a 23.",
+            "consumption_liters": "Consumo observado e alocado ao intervalo, em litros.",
+            "covered_seconds": "Segundos da hora cobertos por janelas de consumo válidas.",
+            "expected_seconds": "Segundos esperados de cobertura para a hora conforme a instalação e o período elegível do dispositivo.",
+            "region_id": "Identificador SQL da região cadastral do imóvel.",
+            "region_name": "Nome canônico da região cadastral, em maiúsculas e com palavras separadas por sublinhado.",
+            "city": "Cidade do endereço em grafia canônica, sem acentos e em maiúsculas.",
+            "state": "Sigla da unidade federativa do endereço; nesta Gold, SP.",
+            "classification_group": "Grupo tarifário do imóvel, por exemplo RESIDENCIAL ou COMERCIAL.",
+            "latitude": "Latitude cadastrada para o endereço do imóvel, em graus decimais.",
+            "longitude": "Longitude cadastrada para o endereço do imóvel, em graus decimais.",
+        },
+    },
+    "tb_alert_count_daily": {
+        "table": "Contagem diária de alertas registrados por dispositivo, tipo e imóvel. Uma linha por data local, dispositivo e tipo de alerta.",
+        "columns": {
+            "local_date": "Data local de abertura do alerta no fuso America/Sao_Paulo.",
+            "device_id": "Identificador SQL do dispositivo associado ao alerta.",
+            "property_id": "Identificador SQL do imóvel associado ao dispositivo.",
+            "region_id": "Identificador SQL da região cadastral do imóvel.",
+            "region_name": "Nome canônico da região cadastral, em maiúsculas e com palavras separadas por sublinhado.",
+            "alert_type": "Tipo de alerta normalizado em minúsculas e com palavras separadas por sublinhado.",
+            "alert_count": "Quantidade de alertas distintos registrados na data para o dispositivo e tipo.",
+        },
+    },
+    "tb_agent_call": {
+        "table": "Chamadas de agentes especialistas registradas nas sessões do assistente. Uma linha por mensagem; chamadas de juiz e roteador são mantidas para contagem de status, sem duração analítica.",
+        "columns": {
+            "session_id": "Identificador da sessão de chat ao qual a mensagem pertence.",
+            "message_index": "Posição da mensagem dentro da sessão, iniciada em zero.",
+            "occurred_at": "Instante UTC de criação da mensagem da chamada.",
+            "agent_name": "Nome canônico do agente associado à chamada, incluindo juiz e roteador quando presentes.",
+            "response_time_ms": "Duração de resposta informada pelo backend, em milissegundos. Nula para juiz/roteador ou chamada sem duração válida permitida pelo contrato.",
+            "api_status_code": "Código HTTP da chamada, no intervalo de 100 a 599; códigos 400 ou superiores indicam falha técnica.",
+        },
+    },
+    "tb_tariff_validity": {
+        "table": "Tarifas de compra de água por região e classe, preservando a vigência cadastral. Uma linha por região, classificação e início de vigência.",
+        "columns": {
+            "region_id": "Identificador SQL da região tarifária.",
+            "region_name": "Nome canônico da região, em maiúsculas e com palavras separadas por sublinhado.",
+            "classification_id": "Identificador SQL da classificação tarifária.",
+            "classification_group": "Grupo de consumo da classificação, como RESIDENCIAL ou COMERCIAL.",
+            "initial_validity": "Data de início da vigência da tarifa.",
+            "final_validity": "Data final da vigência. Nula representa vigência sem data final cadastrada.",
+            "tariff_per_m3": "Valor cadastrado da tarifa de compra por metro cúbico, na moeda definida pela origem SQL.",
+        },
+    },
+    "tb_target_compliance_daily": {
+        "table": "Cumprimento da meta diária individual por usuário e data elegível. Publica somente dias completos com meta positiva e não atribui região ao usuário.",
+        "columns": {
+            "user_key": "Chave pseudonimizada estável do usuário, sem expor o identificador cadastral.",
+            "local_date": "Data local do consumo no fuso America/Sao_Paulo.",
+            "consumption_liters": "Consumo total do usuário no dia elegível, em litros.",
+            "daily_liters_target": "Meta diária de consumo atualmente cadastrada para o usuário, em litros.",
+            "days_within_target": "Indicador binário: 1 quando o consumo diário atende à meta; 0 quando não atende.",
+            "eligible_days": "Quantidade de dias elegíveis representados nesta linha; sempre 1.",
+        },
+    },
+    "tb_device_availability_daily": {
+        "table": "Disponibilidade observada por dispositivo e dia local. O denominador cobre somente o período elegível monitorado; períodos desconhecidos não são presumidos como online.",
+        "columns": {
+            "device_id": "Identificador SQL do dispositivo monitorado.",
+            "property_id": "Identificador SQL do imóvel associado ao dispositivo.",
+            "region_id": "Identificador SQL da região cadastral do imóvel.",
+            "region_name": "Nome canônico da região cadastral, em maiúsculas e com palavras separadas por sublinhado.",
+            "local_date": "Data local do período monitorado no fuso America/Sao_Paulo.",
+            "expected_seconds": "Segundos do período elegível monitorado, usados como denominador da disponibilidade.",
+            "unavailable_seconds": "Segundos do período elegível em que o dispositivo foi observado indisponível.",
+            "available_seconds": "Segundos do período elegível em que o dispositivo foi observado disponível; soma com unavailable_seconds igual a expected_seconds.",
+        },
+    },
+}
+
+
 def validate_bi(name, frame):
     """Contrato estrito de publicação. Somente ausências com significado são permitidas."""
     contracts = {
@@ -592,6 +703,12 @@ def validate_bi(name, frame):
         "tb_device_availability_daily": ("device_id property_id region_id region_name local_date expected_seconds unavailable_seconds available_seconds", "device_id local_date"),
     }
     columns, keys = (part.split() for part in contracts[name])
+    documented_columns = set(GOLD_DESCRIPTIONS[name]["columns"])
+    if documented_columns != set(columns):
+        raise ValueError(
+            f"{name}: descrições do catálogo não correspondem ao contrato: "
+            f"{sorted(set(columns) ^ documented_columns)}"
+        )
     if set(frame.columns) != set(columns):
         raise ValueError(f"{name}: colunas fora do contrato: {sorted(set(frame.columns) ^ set(columns))}")
     nullable = {"final_validity", "response_time_ms"}
@@ -602,6 +719,15 @@ def validate_bi(name, frame):
         reject_rows(frame.filter(~finite(column) | (F.col(column) < 0)), f"{name}: medida inválida em {column}")
     if "region_id" in columns:
         region_dictionary(frame)
+    if "city" in columns:
+        reject_rows(frame.filter(F.col("city") != canonical_text("city")), f"{name}: cidade fora da grafia canônica.")
+        reject_rows(frame.filter(F.col("state") != "SP"), f"{name}: estado fora do recorte SP.")
+    if name == "tb_agent_call":
+        reject_rows(frame.filter(~F.col("api_status_code").between(100, 599)), "Chamadas IA: código HTTP inválido.")
+        reject_rows(frame.filter(F.col("response_time_ms").isNotNull()
+                                 & (~finite("response_time_ms") | (F.col("response_time_ms") < 0))), "Chamadas IA: duração inválida.")
+        specialist = ~F.col("agent_name").isin("judge", "router")
+        reject_rows(frame.filter(specialist & (F.col("api_status_code") < 400) & F.col("response_time_ms").isNull()), "Chamadas IA: especialista com sucesso sem duração válida do backend.")
     if name == "tb_consumption_hourly":
         reject_rows(frame.filter((F.col("expected_seconds") <= 0) | (F.col("covered_seconds") > F.col("expected_seconds") + 0.001)), "Consumo: cobertura maior que o esperado/inválida.")
     if name == "tb_device_availability_daily":
@@ -776,6 +902,14 @@ def save_bi(name, frame):
         .option("userMetadata", metadata)
         .saveAsTable(bi_target("gold_bi", name))
     )
+    table = bi_target("gold_bi", name)
+    table_comment = GOLD_DESCRIPTIONS[name]["table"].replace("'", "''")
+    spark.sql(f"ALTER TABLE {table} SET TBLPROPERTIES ('comment' = '{table_comment}')")
+    for column, description in GOLD_DESCRIPTIONS[name]["columns"].items():
+        column_comment = description.replace("'", "''")
+        spark.sql(
+            f"ALTER TABLE {table} ALTER COLUMN `{column}` COMMENT '{column_comment}'"
+        )
     print(f"[SUCESSO] gold_bi.{name}; lote={BI_BATCH}; corte={BI_CUTOFF}", flush=True)
 
 
