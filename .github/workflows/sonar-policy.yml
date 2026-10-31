@@ -6,8 +6,6 @@ on:
   workflow_run:
     workflows: ['Validação Sonar', 'Reavaliar aprovações Sonar']
     types: [completed]
-  schedule:
-    - cron: '17,47 * * * *'
   workflow_dispatch:
 
 permissions:
