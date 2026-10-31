@@ -1,6 +1,8 @@
 name: Validação Sonar
 
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -48,8 +50,8 @@ jobs:
   scan:
     name: Análise Sonar
     needs: tests
-    if: github.event_name == 'pull_request'
-    uses: delta-app-ofc/.github/.github/workflows/sonar_scan.yml@e7ae0255250ec4cf80a6ffd8fbf47fbdced5115e
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    uses: delta-app-ofc/.github/.github/workflows/sonar_scan.yml@52e5d0a44f39cfadd3a71de570f553156dbb64a4
     with:
       project_key: delta-app-ofc_delta-business-intelligence
       organization: delta-app-ofc
