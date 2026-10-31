@@ -31,6 +31,7 @@ env/
 .coverage.*
 coverage.xml
 htmlcov/
+reports/
 
 # ============================================
 # Java / Maven / Gradle

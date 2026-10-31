@@ -1,0 +1,59 @@
+name: Validação Sonar
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: sonar-bi-v1-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Testes offline e relatórios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar ferramentas de teste
+        run: python -m pip install -r requirements-dev.txt
+      - name: Conferir sintaxe de todos os jobs versionados
+        run: python -m compileall -q v1
+      - name: Executar testes com JUnit e cobertura
+        run: |
+          mkdir -p reports
+          python -m coverage run --branch --source=v1 -m pytest -q --junitxml=reports/junit.xml
+          python -m coverage xml -o reports/coverage.xml
+          python -m coverage html -d reports/htmlcov
+      - name: Publicar relatórios
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar-reports
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 7
+
+  scan:
+    name: Análise Sonar
+    needs: tests
+    if: github.event_name == 'pull_request'
+    uses: delta-app-ofc/.github/.github/workflows/sonar_scan.yml@e7ae0255250ec4cf80a6ffd8fbf47fbdced5115e
+    with:
+      project_key: delta-app-ofc_delta-business-intelligence
+      organization: delta-app-ofc
+      artifact_name: sonar-reports
+      artifact_path: reports
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

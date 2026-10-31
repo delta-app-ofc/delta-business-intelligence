@@ -67,3 +67,18 @@ A referência de produção indicada pelo responsável é o conjunto local previ
 O arquivo `bronze/telemetry/bronze_consumption_summary.py` foi **reconstruído com autorização do responsável** a partir de `bronze/app/bronze_alerts_history.py`, alterando somente conexão, database, coleção e destino. Mantém a leitura Mongo, os metadados de ingestão, o MERGE por `_id`, a evolução de schema, o retry e a amostra de saída do padrão existente. Usa `delta-telemetry-atlas-connection`, `db_delta_telemetry.consumption_summary` e `s3://delta-app-oficial-datalake/bronze/telemetry/consumption_summary/`, o caminho lido pela Silver de consumo desta v1. O conjunto contém agora sete Bronze e sete jobs Silver. Esse Bronze é uma reconstrução do padrão, sem comprovação de identidade com o script original de produção.
 
 Este README concentra a descrição da estrutura. A documentação detalhada permanece destinada ao handbook.
+
+## Testes offline e relatórios
+
+Instale as ferramentas de desenvolvimento e execute:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m compileall -q v1
+mkdir -p reports
+python -m coverage run --branch --source=v1 -m pytest -q --junitxml=reports/junit.xml
+python -m coverage xml -o reports/coverage.xml
+python -m coverage html -d reports/htmlcov
+```
+
+A suite exercita o contrato do envio de lotes com manifestos e respostas sintéticas, sem acessar AWS, S3, Glue ou Databricks. A CI também compila todos os scripts; os jobs Spark não são executados localmente porque dependem dos runtimes Glue/Databricks. O XML mostra os arquivos instrumentados sem afirmar cobertura global de 70%; o critério de 70% se aplica somente às linhas novas ou alteradas que possam ser medidas.
