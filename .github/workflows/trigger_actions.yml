@@ -6,6 +6,7 @@ on:
 
 jobs:
   validate-pr-checks:
+    if: contains(github.event.pull_request.body, format('<!-- delta-ci-result:{0}:', github.event.pull_request.head.sha))
     uses: delta-app-ofc/.github/.github/workflows/main.yml@main
 
     permissions:

@@ -28,7 +28,7 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     needs:
       - syntax
-    uses: delta-app-ofc/.github/.github/workflows/report_ci.yml@3c58dc7de153e08f489708dea824fef2998ee948
+    uses: delta-app-ofc/.github/.github/workflows/report_ci.yml@bf223d513c7fc59b02a67626c91171368b9ceffa
     with:
       needs_results: ${{ toJSON(needs) }}
     secrets:
