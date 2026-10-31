@@ -1,0 +1,39 @@
+name: Validação técnica
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bi-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Verificar sintaxe Python
+        run: python -m compileall -q v1
+
+  report-ci:
+    name: Reportar resultado do CI na PR
+    if: always() && github.event_name == 'pull_request'
+    needs:
+      - syntax
+    uses: delta-app-ofc/.github/.github/workflows/report_ci.yml@8f4329cdde8ad39527069966a5cb97bbb49675b5
+    with:
+      needs_results: ${{ toJSON(needs) }}
+    secrets:
+      DELTA_ORG_AUTOMATION_TOKEN: ${{ secrets.DELTA_ORG_AUTOMATION_TOKEN }}
+    permissions:
+      actions: read
+      issues: write
+      pull-requests: write
