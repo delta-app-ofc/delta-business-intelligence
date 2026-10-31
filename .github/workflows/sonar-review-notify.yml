@@ -1,0 +1,15 @@
+name: Reavaliar aprovações Sonar
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # Sem checkout e sem secrets. workflow_run na base reavalia as APIs.
+      - run: echo 'Revisões alteradas; solicitar reavaliação da política confiável.'

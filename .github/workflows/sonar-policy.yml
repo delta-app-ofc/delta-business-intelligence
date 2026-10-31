@@ -1,0 +1,26 @@
+name: Avaliar política Sonar
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_run:
+    workflows: ['Validação Sonar', 'Reavaliar aprovações Sonar']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-policy-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  policy:
+    uses: delta-app-ofc/.github/.github/workflows/sonar_policy.yml@b23066f74459b02b8bdb04959b4410f2104bbf4e
+    with:
+      project_key: ${{ vars.SONAR_PROJECT_KEY || 'delta-app-ofc_delta-business-intelligence' }}
+      pr_number: ${{ github.event.pull_request.number && format('{0}', github.event.pull_request.number) || '' }}
+    secrets:
+      SONAR_POLICY_TOKEN: ${{ secrets.SONAR_POLICY_TOKEN }}
+      DELTA_ORG_AUTOMATION_TOKEN: ${{ secrets.DELTA_ORG_AUTOMATION_TOKEN }}
