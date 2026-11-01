@@ -83,6 +83,7 @@ else:
                 .withSchemaEvolution()
                 .whenMatchedUpdateAll()
                 .whenNotMatchedInsertAll()
+                .whenNotMatchedBySourceDelete()
                 .execute()
             )
 
