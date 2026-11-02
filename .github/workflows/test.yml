@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   syntax:
+    name: ci-tecnico
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -28,7 +29,7 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     needs:
       - syntax
-    uses: delta-app-ofc/.github/.github/workflows/report_ci.yml@8f4329cdde8ad39527069966a5cb97bbb49675b5
+    uses: delta-app-ofc/.github/.github/workflows/report_ci.yml@d30cc21215e716966e2e05a22e0caa1d410f1b65
     with:
       needs_results: ${{ toJSON(needs) }}
     secrets:
