@@ -18,7 +18,7 @@ job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
 
-BUCKET = "s3://delta-app-oficial-datalake"
+BUCKET = "s3://delta-ofc-datalake"
 
 
 def read_delta(path):

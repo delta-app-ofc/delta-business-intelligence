@@ -35,7 +35,7 @@ MONGO_PREFIX = (
 ).strip().strip("/")
 if MONGO_PREFIX not in ("", "mongo-database"):
     raise ValueError("MONGO_PREFIX inválido")
-MONGO_ROOT = "s3://delta-app-oficial-datalake" + ("/" + MONGO_PREFIX if MONGO_PREFIX else "")
+MONGO_ROOT = "s3://delta-ofc-datalake" + ("/" + MONGO_PREFIX if MONGO_PREFIX else "")
 S3_DESTINATION = f"{MONGO_ROOT}/bronze/app/chat_sessions/"
 
 

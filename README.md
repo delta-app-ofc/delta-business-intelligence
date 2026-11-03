@@ -29,14 +29,17 @@ Este repositório reúne os pipelines analíticos do Projeto Delta. Os jobs orga
 | Transferência | Exportação e envio de lotes ao ambiente Databricks. |
 | Gold | Tabelas analíticas de plataforma e de Business Intelligence usadas por consultas e dashboards. |
 
+Os arquivos deste repositório descrevem jobs e notebooks. Eles não criam os recursos na AWS ou no Databricks, não conectam automaticamente a um ambiente da equipe e não comprovam a execução de um pipeline.
+
 ## Versões dos pipelines
 
-| Versão | Escopo |
-|---|---|
-| [v1](v1/README.md) | Jobs por coleção e tabela; camada Gold de BI com 24 KPIs e bases de plataforma. |
-| [v2](v2/README.md) | Jobs unificados, sete saídas Gold, nove tabelas Mongo e quatro snapshots SQL. |
+| Versão | Escopo documentado | Estado nesta cópia |
+|---|---|---|
+| [v1](v1/README.md) | Jobs por coleção e tabela; Gold BI anterior com 24 KPIs e bases de plataforma. | Versionada no repositório. |
+| [v2](v2/README.md) | Execução compacta, com jobs unificados, sete saídas Gold, nove tabelas Mongo e quatro snapshots SQL. | Versionada no repositório. |
+| [v3](v3/README.md) | Oito saídas Gold, dez tabelas Mongo e quatro snapshots SQL; inclui métricas de observabilidade de IA. | Presente neste checkout local, mas ainda não rastreada pelo Git. Um clone limpo não terá `v3/` até que a pasta seja incorporada ao repositório. |
 
-As pastas `v1/` e `v2/` contêm gerações distintas dos pipelines. Consulte o README da versão para configurar os jobs, os parâmetros e os destinos correspondentes.
+As versões têm contratos e caminhos que evoluem juntos. Confira o `README.md` da versão escolhida antes de registrar ou atualizar jobs; evite executar gerações diferentes simultaneamente sobre os mesmos destinos.
 
 ## Fluxo de dados
 
@@ -46,14 +49,15 @@ MongoDB ──> Bronze ──> Silver ──┐
 PostgreSQL ──> snapshots SQL ──┘
 ```
 
-Cada versão documenta os parâmetros de lote, manifests e tabelas Gold. Nos pipelines compactos, mantenha `batch_id` e horário de corte consistentes entre jobs; a etapa de transferência entrega os lotes ao Databricks para importação e geração da camada Gold.
+O encadeamento exato, os parâmetros de lote, os manifests e as tabelas Gold variam por versão. Nas versões compactas, os jobs precisam compartilhar `batch_id` e horário de corte de acordo com a documentação correspondente. A transferência aceita o envio ao Databricks; a execução posterior do importador e da Gold deve ser acompanhada no ambiente Databricks.
 
 ## Estrutura do repositório
 
 | Caminho | Conteúdo |
 |---|---|
 | `v1/` | Versão granular dos jobs Bronze, Silver, extração SQL, transferência e Gold. |
-| `v2/` | Versão compacta dos scripts e instruções de execução. |
+| `v2/` | Revisão compacta dos scripts e instruções de execução. |
+| `v3/` | Revisão local mais recente, com consultas e observabilidade; ainda não rastreada nesta cópia. |
 | `tests/` | Testes offline do contrato de envio de lotes. |
 | `.github/workflows/test.yml` | Verificação de sintaxe Python 3.9 para a v1 em Pull Requests e execução manual. |
 | `.github/workflows/sonar.yml` | Testes offline e análise de qualidade com Python 3.12. |

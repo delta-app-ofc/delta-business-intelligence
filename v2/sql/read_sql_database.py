@@ -42,7 +42,7 @@ spark.conf.set("spark.sql.session.timeZone", "UTC")
 job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
-S3_DESTINATION = "s3://delta-app-oficial-datalake/sql-database/datamart/"
+S3_DESTINATION = "s3://delta-ofc-datalake/sql-database/datamart/"
 logger = logging.getLogger("sql_v2")
 completed_tables = []
 failed_tables = []

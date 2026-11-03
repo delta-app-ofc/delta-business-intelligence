@@ -52,7 +52,7 @@ Silver e SQL recebem `WORKFLOW_NAME` e `WORKFLOW_RUN_ID` do Glue. A Silver verif
 
 A exportação agora ocorre na mesma sessão Spark da Silver. Mantém o manifest versão 4, o `batch_id` único, os snapshots Delta por versão e os quatro snapshots SQL. O manifest só é publicado depois de todas as exportações e o estado só muda para `delta_export_status=READY` ao final.
 
-O bucket continua `delta-app-oficial-datalake`. Se a conta usar outro bucket, ajuste as constantes em Bronze, Silver, SQL e envio antes de publicar os scripts. As fontes devem permanecer estáveis durante o lote.
+O bucket continua `delta-ofc-datalake`. Se a conta usar outro bucket, ajuste as constantes em Bronze, Silver, SQL e envio antes de publicar os scripts. As fontes devem permanecer estáveis durante o lote.
 
 ## Envio assíncrono ao Databricks
 

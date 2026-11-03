@@ -26,7 +26,7 @@ workflow_run_id = option("WORKFLOW_RUN_ID", "")
 if CHECK_ONLY == "false" and not (workflow_name and workflow_run_id):
     raise ValueError("Execute a carga pelo workflow; SQL_CHECK_ONLY=true permite teste isolado.")
 
-BUCKET = "s3://delta-app-oficial-datalake"
+BUCKET = "s3://delta-ofc-datalake"
 SQL_PREFIX = "sql-database"
 DESTINATION_ROOT = f"{BUCKET}/{SQL_PREFIX}/datamart"
 TABLES = [

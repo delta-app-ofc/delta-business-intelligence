@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import quote, urlparse
 from uuid import uuid4
 
-BUCKET = "delta-app-oficial-datalake"
+BUCKET = "delta-ofc-datalake"
 MAX_FILE_BYTES = 5 * 1024 ** 3
 EXPECTED_TABLES = {
     ("silver_telemetry", "consumption_summary"),

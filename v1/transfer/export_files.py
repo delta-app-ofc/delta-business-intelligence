@@ -35,7 +35,7 @@ spark.conf.set("spark.sql.session.timeZone", "UTC")
 job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
-BUCKET = "delta-app-oficial-datalake"
+BUCKET = "delta-ofc-datalake"
 BATCH_ID = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:12]
 EXPORT_PREFIX = f"exports/databricks/{BATCH_ID}/"
 

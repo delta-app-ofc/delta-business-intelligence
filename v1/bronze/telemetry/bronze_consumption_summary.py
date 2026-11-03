@@ -29,7 +29,7 @@ MONGO_DATABASE = "db_delta_telemetry"
 MONGO_COLLECTION = "consumption_summary"
 
 S3_DESTINATION = (
-    "s3://delta-app-oficial-datalake/"
+    "s3://delta-ofc-datalake/"
     "bronze/telemetry/consumption_summary/"
 )
 

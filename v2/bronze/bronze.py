@@ -11,7 +11,7 @@ from pyspark.context import SparkContext
 from pyspark.sql.functions import col, current_timestamp
 
 
-S3_ROOT = "s3://delta-app-oficial-datalake/mongo-database/bronze/"
+S3_ROOT = "s3://delta-ofc-datalake/mongo-database/bronze/"
 SOURCES = (
     (
         "app", "delta-app-atlas-connection", "db_delta_app",
