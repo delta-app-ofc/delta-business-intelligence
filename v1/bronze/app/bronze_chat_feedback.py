@@ -29,7 +29,7 @@ MONGO_DATABASE = "db_delta_app"
 MONGO_COLLECTION = "chat_feedback"
 
 S3_DESTINATION = (
-    "s3://delta-app-oficial-datalake/"
+    "s3://delta-ofc-datalake/"
     "bronze/app/chat_feedback/"
 )
 

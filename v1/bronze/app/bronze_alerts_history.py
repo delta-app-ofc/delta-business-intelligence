@@ -29,7 +29,7 @@ MONGO_DATABASE = "db_delta_app"
 MONGO_COLLECTION = "alerts_history"
 
 S3_DESTINATION = (
-    "s3://delta-app-oficial-datalake/"
+    "s3://delta-ofc-datalake/"
     "bronze/app/alerts_history/"
 )
 

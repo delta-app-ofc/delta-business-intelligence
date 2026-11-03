@@ -61,8 +61,8 @@ def keep_latest(df, keys, *order_columns):
 
 
 def process_app(spark):
-    S3_SOURCE = "s3://delta-app-oficial-datalake/mongo-database/bronze/app/"
-    S3_DESTINATION = "s3://delta-app-oficial-datalake/mongo-database/silver/app/"
+    S3_SOURCE = "s3://delta-ofc-datalake/mongo-database/bronze/app/"
+    S3_DESTINATION = "s3://delta-ofc-datalake/mongo-database/silver/app/"
 
     logger = logging.getLogger("app_silver")
     failed_tables = []
@@ -635,8 +635,8 @@ def process_app(spark):
 
 
 def process_telemetry(spark):
-    S3_SOURCE = "s3://delta-app-oficial-datalake/mongo-database/bronze/telemetry/"
-    S3_DESTINATION = "s3://delta-app-oficial-datalake/mongo-database/silver/telemetry/"
+    S3_SOURCE = "s3://delta-ofc-datalake/mongo-database/bronze/telemetry/"
+    S3_DESTINATION = "s3://delta-ofc-datalake/mongo-database/silver/telemetry/"
 
     logger = logging.getLogger("telemetry_silver")
     failed_tables = []
@@ -826,7 +826,7 @@ def export_batch(spark, args):
     MONGO_PREFIX = "mongo-database"
     SQL_PREFIX = "sql-database"
 
-    BUCKET = "delta-app-oficial-datalake"
+    BUCKET = "delta-ofc-datalake"
     BATCH_ID = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:12]
     EXPORT_PREFIX = f"exports/databricks/{BATCH_ID}/"
 

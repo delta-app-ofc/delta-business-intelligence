@@ -18,7 +18,7 @@ job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
 
-BUCKET = "s3://delta-app-oficial-datalake"
+BUCKET = "s3://delta-ofc-datalake"
 # Prefixo padrão do Mongo; não depende de função auxiliar.
 MONGO_PREFIX = (
     getResolvedOptions(sys.argv, ["MONGO_PREFIX"])["MONGO_PREFIX"]
