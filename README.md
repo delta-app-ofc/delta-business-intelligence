@@ -5,7 +5,7 @@
 ![AWS Glue](https://img.shields.io/badge/Pipelines-AWS%20Glue%20%2B%20Spark-FF9900?logo=amazonaws&logoColor=white)
 ![Databricks](https://img.shields.io/badge/Analytics-Databricks%20Delta%20Lake-EF3E2F?logo=databricks&logoColor=white)
 
-Aqui, medições de hidrômetros e dados de aplicação ganham forma analítica: os pipelines organizam fontes em camadas Bronze, Silver e Gold e preparam tabelas para indicadores e dashboards. O repositório preserva gerações diferentes do fluxo; cada uma tem instruções próprias e depende de recursos configurados no AWS Glue, S3 e Databricks.
+Este repositório reúne os pipelines analíticos do Projeto Delta. Os jobs organizam dados de hidrômetros e aplicações nas camadas Bronze, Silver e Gold e preparam tabelas para indicadores e dashboards.
 
 **Tags:** `business-intelligence` · `etl` · `aws-glue` · `spark` · `databricks` · `delta-lake` · `bronze-silver-gold` · `iot` · `mongodb` · `postgresql`
 
@@ -37,7 +37,7 @@ Os arquivos deste repositório descrevem jobs e notebooks. Eles não criam os re
 |---|---|---|
 | [v1](v1/README.md) | Jobs por coleção e tabela; Gold BI anterior com 24 KPIs e bases de plataforma. | Versionada no repositório. |
 | [v2](v2/README.md) | Execução compacta, com jobs unificados, sete saídas Gold, nove tabelas Mongo e quatro snapshots SQL. | Versionada no repositório. |
-| v3 | Oito saídas Gold, dez tabelas Mongo e quatro snapshots SQL; inclui métricas de observabilidade de IA. | Presente neste checkout local, mas ainda não rastreada pelo Git. Um clone limpo não terá `v3/` até que a pasta seja incorporada ao repositório. |
+| [v3](v3/README.md) | Oito saídas Gold, dez tabelas Mongo e quatro snapshots SQL; inclui métricas de observabilidade de IA. | Presente neste checkout local, mas ainda não rastreada pelo Git. Um clone limpo não terá `v3/` até que a pasta seja incorporada ao repositório. |
 
 As versões têm contratos e caminhos que evoluem juntos. Confira o `README.md` da versão escolhida antes de registrar ou atualizar jobs; evite executar gerações diferentes simultaneamente sobre os mesmos destinos.
 
@@ -63,13 +63,13 @@ O encadeamento exato, os parâmetros de lote, os manifests e as tabelas Gold var
 | `.github/workflows/sonar.yml` | Testes offline e análise de qualidade com Python 3.12. |
 | `.github/workflows/trigger_actions.yml` | Chamada às automações compartilhadas de Pull Request da organização. |
 | `requirements-dev.txt` | Dependências para os testes offline. |
-| `pipelines-v2-fallback/` e `relatorio-gerencial/` | Diretórios auxiliares existentes neste repositório; consulte seus arquivos antes de reutilizá-los. |
+| `pipelines-v2-fallback/` e `relatorio-gerencial/` | Diretórios auxiliares com materiais das versões anteriores. |
 
 ## Configuração e execução
 
-Não há um comando único para executar toda a plataforma localmente. Para preparar uma execução, escolha a versão e siga seu README para configurar conexões, caminhos S3, parâmetros, permissões e tarefas do Glue e Databricks. Não use o bloco abaixo como execução de pipeline: ele instala apenas dependências de desenvolvimento e valida código/testes locais.
+Escolha a versão do pipeline e siga o README correspondente para configurar conexões, caminhos S3, parâmetros, permissões e tarefas do AWS Glue e Databricks.
 
-Na raiz do repositório, com Python instalado:
+Para instalar as dependências de desenvolvimento e executar a validação local da v1, use Python:
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -77,11 +77,9 @@ python -m compileall -q v1
 python -m pytest -q tests
 ```
 
-Os workflows versionados verificam a v1; eles não executam os jobs Spark em Glue, não fazem chamadas ao MongoDB/PostgreSQL e não validam credenciais, rede, gravações S3/Delta ou execuções reais no Databricks.
-
 ## Testes e CI
 
-`test.yml` compila os scripts da v1 com Python 3.9. O workflow `sonar.yml` usa Python 3.12, compila a v1 e executa a suíte offline com relatórios de teste e cobertura. A suíte exercita o contrato de envio de lotes com respostas sintéticas; ela não mede cobertura global dos jobs Glue nem comprova compatibilidade de runtime Spark.
+`test.yml` compila os scripts da v1 com Python 3.9. O workflow `sonar.yml` usa Python 3.12, compila a v1 e executa a suíte offline, que cobre o contrato de envio de lotes com respostas sintéticas e publica relatórios de teste e cobertura.
 
 ## Repositórios relacionados
 
